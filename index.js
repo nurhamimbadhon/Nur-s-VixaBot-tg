@@ -1,14 +1,13 @@
-const { TelegramClient } = require("telegram");
-const { StringSession } = require("telegram/sessions");
-const fs = require("fs");
-const path = require("path");
-const connectDB = require("./database/connect");
-const eventHandler = require("./handler/event");
-const actionHandler = require("./handler/action");
-const commandLoader = require("./utils/commandLoader");
-const configJson = require("./config.json");
+import { TelegramClient } from "telegram";
+import { StringSession } from "telegram/sessions";
+import fs from "fs";
+import path from "path";
+import connectDB from "./database/connect.js";
+import eventHandler from "./handler/event.js";
+import actionHandler from "./handler/action.js";
+import commandLoader from "./utils/commandLoader.js";
+import configJson from "./config.json" assert { type: "json" };
 
-// Session path
 const SESSION_PATH = path.join("./session/main.session");
 
 async function startBot() {
@@ -30,7 +29,7 @@ async function startBot() {
   await client.connect();
   console.log("✅ Userbot connected!");
 
-  const commands = commandLoader();
+  const commands = await commandLoader(); // make commandLoader async
 
   client.addEventHandler(async (update) => {
     if (update.message) {
