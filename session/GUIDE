@@ -1,0 +1,16 @@
+If you're are using a phone 
+first download the generate.py then (you find it in your download folder)
+
+install termux from playstore (search termux)
+Run command 
+termux-setup-storage
+pkg install python 
+pip install telethon
+cd /sdcard 
+cd Download
+ls
+python generate.py
+
+then enter your api id and api hash
+
+
