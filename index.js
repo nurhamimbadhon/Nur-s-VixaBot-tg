@@ -1,18 +1,17 @@
-import { TelegramClient } from "telegram";
-import { StringSession } from "telegram/sessions";
-import fs from "fs";
-import path from "path";
-import connectDB from "./database/connect.js";
-import eventHandler from "./handler/event.js";
-import actionHandler from "./handler/action.js";
-import commandLoader from "./utils/commandLoader.js";
-import configJson from "./config.json" assert { type: "json" };
+const { TelegramClient } = require("telegram");
+const { StringSession } = require("telegram/sessions");
+const fs = require("fs");
+const path = require("path");
+const connectDB = require("./database/connect");
+const eventHandler = require("./handler/event");
+const actionHandler = require("./handler/action");
+const commandLoader = require("./utils/commandLoader");
+const configJson = require("./config.json");
 
 // Session path
 const SESSION_PATH = path.join("./session/main.session");
 
 async function startBot() {
-  // Connect MongoDB
   await connectDB();
 
   if (!fs.existsSync(SESSION_PATH)) {
@@ -21,24 +20,24 @@ async function startBot() {
   }
 
   const sessionString = fs.readFileSync(SESSION_PATH, "utf8");
-  const client = new TelegramClient(new StringSession(sessionString), Number(process.env.API_ID || configJson.apiId), process.env.API_HASH || configJson.apiHash, {
-    connectionRetries: 5
-  });
+  const client = new TelegramClient(
+    new StringSession(sessionString),
+    Number(process.env.API_ID || configJson.apiId),
+    process.env.API_HASH || configJson.apiHash,
+    { connectionRetries: 5 }
+  );
 
   await client.connect();
   console.log("✅ Userbot connected!");
 
-  // Load commands
   const commands = commandLoader();
 
-  // Message handler
   client.addEventHandler(async (update) => {
     if (update.message) {
       await eventHandler({ message: update.message, chatId: update.chatId, isGroup: update.isGroup, senderId: update.senderId }, client, commands);
     }
   });
 
-  // Reaction handler (example)
   client.addEventHandler(async (update) => {
     if (update.reaction) {
       await actionHandler({ reaction: update.reaction, message: update.message, senderId: update.senderId, client });
