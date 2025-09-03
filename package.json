@@ -2,7 +2,7 @@
   "name": "my-userbot",
   "version": "1.0.0",
   "dependencies": {
-    "telegram": "^4.15.4",
+    "@gramjs/gramjs": "^0.34.0",
     "mongodb": "^6.3.0",
     "input": "^1.0.1",
     "fs": "0.0.1-security",
