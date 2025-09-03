@@ -3,7 +3,7 @@
   "apiHash": "69552f78d69bb3e701fb2e823baf09a3",
   "prefix": "!",
   "ownerIds": ["7746803397"],
-  "adminIds": ["7746803397","8032682732"],
+  "adminIds": ["7746803397", "8032682732"],
   "whitelistIds": [],
   "selfListen": true,
   "adminOnly": true,
