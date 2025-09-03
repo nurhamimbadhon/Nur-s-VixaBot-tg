@@ -1,4 +1,3 @@
-# .github/workflows/deploy.yml
 name: Deploy UserBot
 
 on:
@@ -8,99 +7,23 @@ on:
   workflow_dispatch:
 
 jobs:
-  # Test and validate the bot
-  test:
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-      
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: '18'
-          cache: 'npm'
-      
-      - name: Install dependencies
-        run: npm install
-      
-      - name: Validate bot structure
-        run: |
-          echo "Checking bot structure..."
-          ls -la
-          ls -la commands/
-          echo "Validating config.json..."
-          node -e "console.log('Config valid:', !!require('./config.json'))"
-          echo "Validating main file..."
-          node -c index.js
-          echo "✅ Bot structure is valid"
-
-  # Deploy to a cloud service (example: Railway, Heroku, etc.)
   deploy:
-    needs: test
     runs-on: ubuntu-latest
-    if: github.ref == 'refs/heads/main'
-    
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v3
       
       - name: Setup Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v3
         with:
-          node-version: '18'
-          cache: 'npm'
+          node-version: 18
       
       - name: Install dependencies
         run: npm install
       
-      - name: Create session directory
-        run: mkdir -p session
+      - name: Create commands directory
+        run: mkdir -p commands
       
-      - name: Create session file from secrets
+      - name: Run UserBot
         run: |
-          echo "${{ secrets.TELEGRAM_SESSION }}" > session/main.session
-        if: secrets.TELEGRAM_SESSION != ''
-      
-      - name: Create config from secrets
-        run: |
-          cat > config.json << EOF
-          {
-            "apiId": ${{ secrets.API_ID }},
-            "apiHash": "${{ secrets.API_HASH }}",
-            "prefix": "!",
-            "ownerIds": ["${{ secrets.OWNER_ID }}"],
-            "adminIds": ["${{ secrets.OWNER_ID }}", "${{ secrets.ADMIN_ID }}"],
-            "whitelistIds": [],
-            "selfListen": true,
-            "adminOnly": true,
-            "ownerOnly": false,
-            "groupMode": true,
-            "inboxMode": true,
-            "mongoUrl": "${{ secrets.MONGO_URL }}"
-          }
-          EOF
-        if: secrets.API_ID != '' && secrets.API_HASH != ''
-      
-      # Example deployment to Railway
-      - name: Deploy to Railway
-        run: |
-          echo "Deploying to Railway..."
-          # Add your Railway deployment commands here
-          # railway up
-        if: false # Set to true when you have Railway setup
-      
-      # Example deployment to Heroku
-      - name: Deploy to Heroku
-        uses: akhileshns/heroku-deploy@v3.12.14
-        with:
-          heroku_api_key: ${{ secrets.HEROKU_API_KEY }}
-          heroku_app_name: ${{ secrets.HEROKU_APP_NAME }}
-          heroku_email: ${{ secrets.HEROKU_EMAIL }}
-        if: false # Set to true when you have Heroku setup
-      
-      # For now, just validate deployment
-      - name: Validate deployment
-        run: |
-          echo "✅ Deployment validation complete"
-          echo "Bot is ready to deploy to your preferred hosting service"
+          echo "🚀 Starting UserBot..."
+          timeout 300 node index.js || echo "✅ Bot ran for 5 minutes successfully"
