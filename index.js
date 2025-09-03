@@ -1,40 +1,211 @@
-import { TelegramClient } from "telegram";
-import { StringSession } from "telegram/sessions/index.js";
-import fs from "fs";
-import path from "path";
-import { fileURLToPath } from 'url';
-import { dirname } from 'path';
-import connectDB from "./database/connect.js";
-import eventHandler from "./handler/event.js";
-import actionHandler from "./handler/action.js";
-import commandLoader from "./utils/commandLoader.js";
+// index.js
+const { TelegramClient } = require('telegram');
+const { StringSession } = require('telegram/sessions');
+const fs = require('fs');
+const path = require('path');
+const config = require('./config.json');
 
-// Get current directory for ES modules
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = dirname(__filename);
+class TelegramUserBot {
+    constructor() {
+        this.client = null;
+        this.commands = new Map();
+        this.loadCommands();
+    }
 
-// Load config
-let configJson = {};
-try {
-  const configData = fs.readFileSync(path.join(__dirname, "config.json"), "utf8");
-  configJson = JSON.parse(configData);
-  console.log("✅ config.json loaded successfully");
-} catch (error) {
-  console.error("❌ config.json not found or invalid:", error.message);
-  process.exit(1);
+    // Load all commands from the commands directory
+    loadCommands() {
+        const commandsPath = path.join(__dirname, 'commands');
+        if (!fs.existsSync(commandsPath)) {
+            fs.mkdirSync(commandsPath, { recursive: true });
+            console.log('📁 Commands directory created');
+        }
+
+        const commandFiles = fs.readdirSync(commandsPath).filter(file => file.endsWith('.js'));
+        
+        for (const file of commandFiles) {
+            try {
+                const commandPath = path.join(commandsPath, file);
+                delete require.cache[require.resolve(commandPath)]; // Clear cache for hot reload
+                const command = require(commandPath);
+                
+                if (command.name && command.execute) {
+                    this.commands.set(command.name, command);
+                    console.log(`✅ Loaded command: ${command.name}`);
+                } else {
+                    console.log(`⚠️  Command file ${file} is missing name or execute function`);
+                }
+            } catch (error) {
+                console.error(`❌ Error loading command ${file}:`, error.message);
+            }
+        }
+    }
+
+    // Initialize the Telegram client
+    async initialize() {
+        try {
+            // Read session file if exists
+            const sessionPath = path.join(__dirname, 'session', 'main.session');
+            let session = new StringSession('');
+            
+            if (fs.existsSync(sessionPath)) {
+                const sessionData = fs.readFileSync(sessionPath, 'utf8');
+                session = new StringSession(sessionData);
+            }
+
+            this.client = new TelegramClient(
+                session,
+                config.apiId,
+                config.apiHash,
+                {
+                    connectionRetries: 5,
+                }
+            );
+
+            console.log('🔄 Connecting to Telegram...');
+            await this.client.start();
+            
+            // Save session data
+            const sessionDir = path.join(__dirname, 'session');
+            if (!fs.existsSync(sessionDir)) {
+                fs.mkdirSync(sessionDir, { recursive: true });
+            }
+            fs.writeFileSync(sessionPath, this.client.session.save());
+
+            const me = await this.client.getMe();
+            console.log(`✅ Connected as: ${me.firstName} ${me.lastName || ''} (@${me.username || 'N/A'})`);
+            
+            this.setupEventHandlers();
+            
+        } catch (error) {
+            console.error('❌ Failed to initialize bot:', error.message);
+            process.exit(1);
+        }
+    }
+
+    // Setup event handlers for incoming messages
+    setupEventHandlers() {
+        this.client.addEventHandler(async (update) => {
+            try {
+                if (update.className === 'UpdateNewMessage') {
+                    await this.handleMessage(update.message);
+                }
+            } catch (error) {
+                console.error('❌ Error in event handler:', error.message);
+            }
+        });
+
+        console.log('👂 Event handlers set up successfully');
+    }
+
+    // Handle incoming messages
+    async handleMessage(message) {
+        try {
+            // Skip if message is empty or doesn't have text
+            if (!message.message) return;
+
+            const text = message.message;
+            const isGroup = message.peerId.className === 'PeerChannel' || message.peerId.className === 'PeerChat';
+            const isPrivate = message.peerId.className === 'PeerUser';
+
+            // Get sender info
+            const sender = await message.getSender();
+            const senderId = sender.id.toString();
+
+            // Check permissions
+            if (!this.hasPermission(senderId, isGroup, isPrivate)) {
+                return;
+            }
+
+            // Check if message starts with prefix
+            if (!text.startsWith(config.prefix)) return;
+
+            // Parse command and arguments
+            const args = text.slice(config.prefix.length).trim().split(/ +/);
+            const commandName = args.shift().toLowerCase();
+
+            // Check if command exists
+            if (!this.commands.has(commandName)) return;
+
+            const command = this.commands.get(commandName);
+
+            // Execute command
+            console.log(`🎯 Executing command: ${commandName} by ${sender.firstName || 'Unknown'} (${senderId})`);
+            
+            await command.execute({
+                client: this.client,
+                message: message,
+                args: args,
+                sender: sender,
+                config: config,
+                isGroup: isGroup,
+                isPrivate: isPrivate
+            });
+
+        } catch (error) {
+            console.error('❌ Error handling message:', error.message);
+            try {
+                await message.reply(`❌ Error: ${error.message}`);
+            } catch (replyError) {
+                console.error('❌ Failed to send error message:', replyError.message);
+            }
+        }
+    }
+
+    // Check if user has permission to use the bot
+    hasPermission(userId, isGroup, isPrivate) {
+        // Owner always has access
+        if (config.ownerIds.includes(userId)) return true;
+
+        // If owner only mode is enabled, only owners can use
+        if (config.ownerOnly) return false;
+
+        // Check admin permissions
+        if (config.adminOnly && !config.adminIds.includes(userId)) return false;
+
+        // Check whitelist if configured
+        if (config.whitelistIds.length > 0 && !config.whitelistIds.includes(userId)) return false;
+
+        // Check group/inbox mode
+        if (isGroup && !config.groupMode) return false;
+        if (isPrivate && !config.inboxMode) return false;
+
+        return true;
+    }
+
+    // Start the bot
+    async start() {
+        console.log('🚀 Starting Telegram UserBot...');
+        await this.initialize();
+        console.log('✅ Bot is running! Press Ctrl+C to stop.');
+    }
+
+    // Stop the bot gracefully
+    async stop() {
+        if (this.client) {
+            console.log('🔄 Disconnecting...');
+            await this.client.disconnect();
+            console.log('✅ Bot stopped successfully');
+        }
+    }
 }
 
-const SESSION_PATH = path.join(__dirname, "session", "main.session");
+// Handle process termination
+const bot = new TelegramUserBot();
 
-async function startBot() {
-  try {
-    // Connect to database using mongoUrl from config
-    if (configJson.mongoUrl) {
-      await connectDB(configJson.mongoUrl);
-      console.log("✅ Database connected!");
-    } else {
-      console.warn("⚠️ No mongoUrl found in config.json, skipping database connection");
-    }
+process.on('SIGINT', async () => {
+    console.log('\n🛑 Received SIGINT, shutting down gracefully...');
+    await bot.stop();
+    process.exit(0);
+});
+
+process.on('SIGTERM', async () => {
+    console.log('\n🛑 Received SIGTERM, shutting down gracefully...');
+    await bot.stop();
+    process.exit(0);
+});
+
+// Start the bot
+bot.start().catch(console.error);    }
 
     // Check if session file exists
     if (!fs.existsSync(SESSION_PATH)) {
