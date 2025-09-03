@@ -1,1 +1,14 @@
-
+{
+  "apiId": 28190592,
+  "apiHash": "69552f78d69bb3e701fb2e823baf09a3",
+  "prefix": "!",
+  "ownerIds": ["7746803397"],
+  "adminIds": ["7746803397","8032682732"],
+  "whitelistIds": [],
+  "selfListen": true,
+  "adminOnly": true,
+  "ownerOnly": false,
+  "groupMode": true,
+  "inboxMode": true,
+  "mongoUrl": "mongodb+srv://aanoonymous:rbgllUxYkrUWceka@cluster0.o13efgw.mongodb.net/vixabot-v3?retryWrites=true&w=majority&appName=Cluster0"
+}
