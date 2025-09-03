@@ -12,5 +12,9 @@ ls
 python generate.py
 
 then enter your api id and api hash
+then enter your number and the otp you got
+
+after that you will find a main.session in your download folder,
+upload it in session directory..
 
 
