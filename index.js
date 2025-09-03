@@ -1,10 +1,11 @@
-const { TelegramClient } = require('telegram');
-const { StringSession } = require('telegram/sessions');
-const input = require('input');
-const fs = require('fs');
+const { TelegramClient } = require("telegram");
+const { StringSession } = require("telegram/sessions");
+const fs = require("fs");
+const path = require("path");
 const config = require('./config.json');
 const { connectDB } = require('./database/index');
 const Chat = require('./database/Chat');
+const User = require('./database/User');
 const { checkPermission } = require('./utils/permission');
 
 // Load commands
@@ -12,17 +13,36 @@ const commands = {};
 const loadCommands = async () => {
     const categories = ['cmd', 'admin', 'owner'];
     for (const category of categories) {
-        const files = fs.readdirSync(`./scripts/${category}`);
-        for (const file of files) {
-            const command = require(`./scripts/${category}/${file}`);
-            commands[command.command] = command;
+        const categoryPath = path.join(__dirname, 'scripts', category);
+        if (fs.existsSync(categoryPath)) {
+            const files = fs.readdirSync(categoryPath);
+            for (const file of files) {
+                if (file.endsWith('.js')) {
+                    try {
+                        const command = require(path.join(categoryPath, file));
+                        commands[command.command] = command;
+                        console.log(`Loaded command: ${command.command}`);
+                    } catch (error) {
+                        console.error(`Error loading command ${file}:`, error);
+                    }
+                }
+            }
         }
     }
 };
 
-const session = new StringSession(fs.readFileSync('./session/main.session', 'utf8'));
+// Read session from file
+let sessionString = '';
+const sessionPath = path.join(__dirname, 'session', 'main.session');
+if (fs.existsSync(sessionPath)) {
+    sessionString = fs.readFileSync(sessionPath, 'utf8').trim();
+    console.log('Session file found and loaded');
+} else {
+    console.log('No session file found. A new one will be created after login.');
+}
 
-const client = new TelegramClient(session, config.apiId, config.apiHash, {
+const stringSession = new StringSession(sessionString);
+const client = new TelegramClient(stringSession, config.apiId, config.apiHash, {
     connectionRetries: 5,
 });
 
@@ -30,6 +50,7 @@ async function main() {
     await connectDB();
     await loadCommands();
     
+    // Start the client
     await client.start({
         phoneNumber: async () => await input.text('Please enter your number: '),
         password: async () => await input.text('Please enter your password: '),
@@ -37,23 +58,39 @@ async function main() {
         onError: (err) => console.log(err),
     });
     
-    console.log('Userbot started!');
+    // Save the session string to file
+    const newSessionString = client.session.save();
+    if (newSessionString !== sessionString) {
+        // Ensure session directory exists
+        const sessionDir = path.dirname(sessionPath);
+        if (!fs.existsSync(sessionDir)) {
+            fs.mkdirSync(sessionDir, { recursive: true });
+        }
+        
+        fs.writeFileSync(sessionPath, newSessionString);
+        console.log('Session saved to:', sessionPath);
+    }
     
-    client.addEventHandler(async (event) => {
+    console.log('Userbot started!');
+    console.log('You are logged in as:', await client.getMe());
+    
+    // Add event handler for messages
+    client.addEventHandler(async (update) => {
         try {
-            const message = event.message;
-            if (!message || !message.text) return;
-
-            const text = message.text;
+            const message = update.message;
+            if (!message || !message.message) return;
+            
+            const text = message.message;
             if (!text.startsWith(config.prefix)) return;
-
+            
             // Check if chat is allowed
-            const isAllowed = await Chat.isAllowed(message.chatId.toString());
+            const chatId = message.chatId.toString();
+            const isAllowed = await Chat.isAllowed(chatId);
             if (!isAllowed && !config.ownerIds.includes(message.senderId.toString())) return;
-
+            
             const args = text.slice(config.prefix.length).trim().split(/ +/);
             const commandName = args.shift().toLowerCase();
-
+            
             if (commands[commandName]) {
                 const command = commands[commandName];
                 const hasPermission = await checkPermission(message.senderId.toString(), command.require);
@@ -61,13 +98,19 @@ async function main() {
                 if (hasPermission) {
                     await command.run(client, message, args);
                 } else {
-                    await message.reply({ text: 'Insufficient permissions!' });
+                    await client.sendMessage(message.chatId, {
+                        message: "Insufficient permissions!",
+                        replyTo: message.id
+                    });
                 }
             }
         } catch (error) {
             console.error('Error handling message:', error);
         }
     });
+    
+    // Keep the client running
+    await client.runUntilDisconnected();
 }
 
 main().catch(console.error);
