@@ -28,9 +28,13 @@ const SESSION_PATH = path.join(__dirname, "session", "main.session");
 
 async function startBot() {
   try {
-    // Connect to database
-    await connectDB();
-    console.log("✅ Database connected!");
+    // Connect to database using mongoUrl from config
+    if (configJson.mongoUrl) {
+      await connectDB(configJson.mongoUrl);
+      console.log("✅ Database connected!");
+    } else {
+      console.warn("⚠️ No mongoUrl found in config.json, skipping database connection");
+    }
 
     // Check if session file exists
     if (!fs.existsSync(SESSION_PATH)) {
@@ -47,16 +51,19 @@ async function startBot() {
     
     if (!apiId || !apiHash) {
       console.error("❌ Missing apiId or apiHash in config.json");
-      console.error("Please make sure config.json contains:");
-      console.error(`{
-  "apiId": "your_api_id",
-  "apiHash": "your_api_hash",
-  "mongodbUri": "mongodb://localhost:27017/vixa_userbot",
-  "botPrefix": ".",
-  "ownerId": "your_telegram_user_id"
-}`);
       process.exit(1);
     }
+
+    // Log configuration status
+    console.log(`🔧 Configuration loaded:`);
+    console.log(`   - API ID: ${apiId}`);
+    console.log(`   - Prefix: ${configJson.prefix}`);
+    console.log(`   - Owner IDs: ${configJson.ownerIds?.join(', ')}`);
+    console.log(`   - Admin IDs: ${configJson.adminIds?.join(', ')}`);
+    console.log(`   - Self Listen: ${configJson.selfListen}`);
+    console.log(`   - Admin Only: ${configJson.adminOnly}`);
+    console.log(`   - Group Mode: ${configJson.groupMode}`);
+    console.log(`   - Inbox Mode: ${configJson.inboxMode}`);
 
     // Create Telegram client
     const client = new TelegramClient(
@@ -84,12 +91,13 @@ async function startBot() {
     client.addEventHandler(async (update) => {
       try {
         if (update.message) {
+          // Pass config to event handler
           await eventHandler({
             message: update.message,
             chatId: update.chatId,
             isGroup: update.isGroup,
             senderId: update.senderId
-          }, client, commands);
+          }, client, commands, configJson);
         }
       } catch (error) {
         console.error("❌ Error in message event handler:", error);
@@ -100,12 +108,13 @@ async function startBot() {
     client.addEventHandler(async (update) => {
       try {
         if (update.reaction) {
+          // Pass config to action handler
           await actionHandler({
             reaction: update.reaction,
             message: update.message,
             senderId: update.senderId,
             client
-          });
+          }, configJson);
         }
       } catch (error) {
         console.error("❌ Error in reaction event handler:", error);
