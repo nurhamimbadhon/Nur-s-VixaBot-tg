@@ -1,18 +1,14 @@
 {
   "name": "telegram-userbot",
   "version": "1.0.0",
-  "description": "Telegram UserBot (GramJS + MongoDB) with persistent settings & Render deploy",
+  "type": "module", 
   "main": "index.js",
   "scripts": {
-    "start": "node index.js",
-    "gen:session": "python3 utils/generateSession.py",
-    "control": "node control/bot.js"
+    "start": "node index.js"
   },
   "dependencies": {
-    "dotenv": "^16.4.5",
-    "express": "^4.19.2",
-    "mongoose": "^8.5.1",
-    "node-telegram-bot-api": "^0.66.0",
-    "telegram": "^2.25.7"
+    "telegram": "^1.9.0",
+    "mongoose": "^7.3.1",
+    "dotenv": "^16.3.1"
   }
 }
