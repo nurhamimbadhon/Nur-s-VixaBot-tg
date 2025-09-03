@@ -1,14 +1,36 @@
 {
-  "name": "telegram-userbot",
+  "name": "nur-vixa-userbot",
   "version": "1.0.0",
-  "type": "module", 
+  "description": "Telegram UserBot with command & reaction handler, MongoDB sync, selfListen, admin/owner system",
+  "type": "module",
   "main": "index.js",
   "scripts": {
     "start": "node index.js"
+  },
+  "engines": {
+    "node": ">=18.0.0"
   },
   "dependencies": {
     "telegram": "^1.9.0",
     "mongoose": "^7.3.1",
     "dotenv": "^16.3.1"
-  }
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/yourusername/nur-vixa-userbot.git"
+  },
+  "keywords": [
+    "telegram",
+    "userbot",
+    "bot",
+    "mongodb",
+    "telethon",
+    "selflisten"
+  ],
+  "author": "Nur",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/yourusername/nur-vixa-userbot/issues"
+  },
+  "homepage": "https://github.com/yourusername/nur-vixa-userbot#readme"
 }
