@@ -1,41 +1,32 @@
 {
-  "name": "nur-vixa-userbot",
+  "name": "telegram-userbot",
   "version": "1.0.0",
-  "description": "Telegram UserBot with command & reaction handler, MongoDB sync, selfListen, admin/owner system",
-  "type": "module",
+  "description": "A Telegram userbot with song download functionality",
   "main": "index.js",
   "scripts": {
     "start": "node index.js",
-    "dev": "node --watch index.js",
+    "dev": "nodemon index.js",
     "test": "echo \"Error: no test specified\" && exit 1"
-  },
-  "engines": {
-    "node": ">=18.12.0"
-  },
-  "dependencies": {
-    "telegram": "^2.22.2",
-    "mongoose": "^8.0.0"
-  },
-  "devDependencies": {
-    "nodemon": "^3.0.1"
-  },
-  "repository": {
-    "type": "git",
-    "url": "git+https://github.com/nurhamimbadhon/Nur-s-VixaBot-tg.git"
   },
   "keywords": [
     "telegram",
     "userbot",
-    "bot",
-    "mongodb",
-    "telegram-api",
-    "userbot-telegram",
-    "vixa-bot"
+    "music",
+    "download"
   ],
-  "author": "Nur Hamim Badhon",
+  "author": "Your Name",
   "license": "MIT",
-  "bugs": {
-    "url": "https://github.com/nurhamimbadhon/Nur-s-VixaBot-tg/issues"
+  "dependencies": {
+    "telegram": "^2.22.2",
+    "ytdl-core": "^4.11.5",
+    "youtube-search-without-api-key": "^1.0.13",
+    "mongodb": "^6.3.0",
+    "mongoose": "^8.0.3"
   },
-  "homepage": "https://github.com/nurhamimbadhon/Nur-s-VixaBot-tg#readme"
+  "devDependencies": {
+    "nodemon": "^3.0.2"
+  },
+  "engines": {
+    "node": ">=16.0.0"
+  }
 }
