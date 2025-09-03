@@ -1,5 +1,6 @@
-const { TelegramClient } = require("telegram");
-const { StringSession } = require("telegram/sessions");
+const { TelegramClient } = require("@gramjs/gramjs");
+const { StringSession } = require("@gramjs/gramjs/sessions");
+const input = require("input");
 const fs = require("fs");
 const path = require("path");
 const config = require('./config.json');
@@ -50,12 +51,14 @@ async function main() {
     await connectDB();
     await loadCommands();
     
+    console.log('Connecting to Telegram...');
+    
     // Start the client
     await client.start({
         phoneNumber: async () => await input.text('Please enter your number: '),
         password: async () => await input.text('Please enter your password: '),
         phoneCode: async () => await input.text('Please enter the code you received: '),
-        onError: (err) => console.log(err),
+        onError: (err) => console.log('Connection error:', err),
     });
     
     // Save the session string to file
@@ -71,34 +74,40 @@ async function main() {
         console.log('Session saved to:', sessionPath);
     }
     
+    const me = await client.getMe();
     console.log('Userbot started!');
-    console.log('You are logged in as:', await client.getMe());
+    console.log('Logged in as:', me.username || me.firstName);
     
-    // Add event handler for messages
+    // Add event handler for new messages
     client.addEventHandler(async (update) => {
         try {
+            if (update.className !== 'UpdateNewMessage') return;
+            
             const message = update.message;
             if (!message || !message.message) return;
             
             const text = message.message;
             if (!text.startsWith(config.prefix)) return;
             
+            // Get chat ID and sender ID
+            const chatId = message.chatId.value.toString();
+            const senderId = message.senderId.value.toString();
+            
             // Check if chat is allowed
-            const chatId = message.chatId.toString();
             const isAllowed = await Chat.isAllowed(chatId);
-            if (!isAllowed && !config.ownerIds.includes(message.senderId.toString())) return;
+            if (!isAllowed && !config.ownerIds.includes(senderId)) return;
             
             const args = text.slice(config.prefix.length).trim().split(/ +/);
             const commandName = args.shift().toLowerCase();
             
             if (commands[commandName]) {
                 const command = commands[commandName];
-                const hasPermission = await checkPermission(message.senderId.toString(), command.require);
+                const hasPermission = await checkPermission(senderId, command.require);
                 
                 if (hasPermission) {
                     await command.run(client, message, args);
                 } else {
-                    await client.sendMessage(message.chatId, {
+                    await client.sendMessage(chatId, {
                         message: "Insufficient permissions!",
                         replyTo: message.id
                     });
@@ -108,6 +117,8 @@ async function main() {
             console.error('Error handling message:', error);
         }
     });
+    
+    console.log('Listening for messages...');
     
     // Keep the client running
     await client.runUntilDisconnected();
